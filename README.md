@@ -1,1 +1,1 @@
-# vr
+# Stanley e Gay
