@@ -1,165 +1,313 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<title>Cardboard Example</title>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-	<style>
-		body {
-			margin: 0px;
-			overflow: hidden;
-		}
+    <title>Cardboard Example</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            margin: 0px;
+            overflow: hidden;
+        }
 
-		#example {
-			position: absolute;
-			top: 0;
-			left: 0;
-			right: 0;
-			bottom: 0;
-		}
-	</style>
+        #example {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        .crossImg{
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            top: 50%;
+        }
+
+        #crossImg {
+            left: 25%;
+            -webkit-transform: translate(-25%, -50%);
+            transform: translate(-25%, -50%);
+        }
+        #crossImg2 {
+            left: 75%;
+            -webkit-transform: translate(-75%, -50%);
+            transform: translate(-75%, -50%);
+        }
+
+    </style>
 </head>
 <body>
-<div id="example"></div>
 
-<script src="js/third-party/threejs/three.js"></script>
+<div id="example">
+    <!--<button id="animateMe" onclick="animate()">Animate</button>-->
+    <img class="crossImg" id="crossImg" src="img/circle.gif"/>
+    <img class="crossImg" id="crossImg2" src="img/circle.gif"/>
+</div>
+<!--<iframe src="https://www.casino.com/uk/games/hlf2/halloween-fortune-ii/?mode=practice" style="position: absolute; z-index:999999999; top:0; left:0; width: 100%; height:100%;"></iframe>-->
+<script src="build/three.js"></script>
 <script src="js/third-party/threejs/StereoEffect.js"></script>
 <script src="js/third-party/threejs/DeviceOrientationControls.js"></script>
 <script src="js/third-party/threejs/OrbitControls.js"></script>
+<script src="js/NoSleep.min.js"></script>
 
 <script>
-	var camera, cube, scene, renderer;
-	var effect, controls;
-	var element, container;
+    var camera, cube, scene, renderer;
+    var effect, controls;
+    var element, container;
+    var planes = [];
+    var menu_items = [];
+    var defaults = [];
+    var clock = new THREE.Clock();
 
-	var clock = new THREE.Clock();
+    init();
+    animate();
 
-	init();
-	animate();
+    var noSleep = new NoSleep();
 
-	function init() {
-		renderer = new THREE.WebGLRenderer();
-		element = renderer.domElement;
-		container = document.getElementById('example');
-		container.appendChild(element);
+    function enableNoSleep() {
+        noSleep.enable();
+        document.removeEventListener('touchstart', enableNoSleep, false);
+    }
 
-		effect = new THREE.StereoEffect(renderer);
+    // Enable wake lock.
+    // (must be wrapped in a user input event handler e.g. a mouse or touch handler)
+    document.addEventListener('touchstart', enableNoSleep, false);
 
-		scene = new THREE.Scene();
+    // ...
 
-		camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.001, 700);
-		camera.position.set(0, 10, 0);
-		scene.add(camera);
+    // Disable wake lock at some point in the future.
+    // (does not need to be wrapped in any user input event handler)
+    noSleep.disable();
 
-//		CUBE
-//		var geometry = new THREE.BoxGeometry( 1, 1, 1 );
-//		var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-//		cube = new THREE.Mesh( geometry, material );
-//		cube.position.set(0, 10, 10);
-//		scene.add( cube );
+    function init() {
+        renderer = new THREE.WebGLRenderer();
+        element = renderer.domElement;
+        container = document.getElementById('example');
+        container.appendChild(element);
 
-		camera.position.z = 5;
+        effect = new THREE.StereoEffect(renderer);
 
-		controls = new THREE.OrbitControls(camera, element);
+        scene = new THREE.Scene();
+
+        camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.001, 700);
+//		camera.position.set(0, 10, 0);
+
+
+        scene.add(camera);
+
+        scene.background = new THREE.CubeTextureLoader()
+                .setPath('img/textures/santamaria/')
+                .load(['px.jpg', 'nx.jpg', 'py.jpg', 'ny.jpg', 'pz.jpg', 'nz.jpg']);
+
+
+        var textureCube = new THREE.CubeTextureLoader()
+                .setPath('img/textures/santamaria/')
+                .load(['px.jpg', 'nx.jpg', 'py.jpg', 'ny.jpg', 'pz.jpg', 'nz.jpg']);
+        textureCube.mapping = THREE.CubeRefractionMapping;
+
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+
+        controls = new THREE.OrbitControls(camera, element);
 //		controls.rotateUp(Math.PI / 4);
-		controls.target.set(
-				camera.position.x + 0.1,
-				camera.position.y,
-				camera.position.z
-		);
-		controls.noZoom = true;
-		controls.noPan = true;
-
-		function setOrientationControls(e) {
-			if (!e.alpha) {
-				return;
-			}
-
-			controls = new THREE.DeviceOrientationControls(camera, true);
-			controls.connect();
-			controls.update();
-
-			element.addEventListener('click', fullscreen, false);
-
-			window.removeEventListener('deviceorientation', setOrientationControls, true);
-		}
-
-		window.addEventListener('deviceorientation', setOrientationControls, true);
+        controls.target.set(
+                camera.position.x + 0.1,
+                camera.position.y,
+                camera.position.z
+        );
+        controls.noZoom = true;
+        controls.noPan = true;
+        addMenu(150, 8, 0, 0);
 
 
-		var light = new THREE.HemisphereLight(0x777777, 0x000000, 0.6);
-		scene.add(light);
 
-		var texture = THREE.ImageUtils.loadTexture(
-				'textures/patterns/checker.png'
-		);
-		texture.wrapS = THREE.RepeatWrapping;
-		texture.wrapT = THREE.RepeatWrapping;
-		texture.repeat = new THREE.Vector2(50, 50);
-		texture.anisotropy = renderer.getMaxAnisotropy();
+        function setOrientationControls(e) {
+            if (!e.alpha) {
+                return;
+            }
 
-		var material = new THREE.MeshPhongMaterial({
-			color: 0xffffff,
-			specular: 0xffffff,
-			shininess: 20,
-			shading: THREE.FlatShading,
-			map: texture
-		});
+            controls = new THREE.DeviceOrientationControls(camera, true);
+            controls.connect();
+            controls.update();
+            element.addEventListener('click', fullscreen, false);
 
-		var geometry = new THREE.PlaneGeometry(1000, 1000);
+            window.removeEventListener('deviceorientation', setOrientationControls, true);
+        }
 
-		var mesh = new THREE.Mesh(geometry, material);
-		mesh.rotation.x = -Math.PI / 2;
-		scene.add(mesh);
+        window.addEventListener('deviceorientation', setOrientationControls, true);
 
-		window.addEventListener('resize', resize, false);
-		setTimeout(resize, 1);
-	}
 
-	function resize() {
-		var width = container.offsetWidth;
-		var height = container.offsetHeight;
+        var light = new THREE.HemisphereLight(0x777777, 0x000000, 0.9);
+        scene.add(light);
+
+        window.addEventListener('resize', resize, false);
+        setTimeout(resize, 1);
+    }
+    function addMenu(base_distance, total, current_rotation, row) {
+        var game_geometry = new THREE.PlaneGeometry(100, 147 * 0.4);
+        base_distance = 150;
+        total = 8;
+        current_rotation = 0;
+
+        for (var i = 1; i <= total; i++) {
+            var game_image = new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture('img/menu_images/' + i + '.jpg')});
+            menu_item = new THREE.Mesh(game_geometry, game_image);
+            current_rotation = 360 / total + current_rotation;
+            menu_item.rotation.y = (current_rotation * Math.PI) / 180;
+
+            var sin = [0, 180, 360];
+            var cos = [90, 270];
+
+            menu_item.position.x = sin.indexOf(current_rotation) > -1 ? 0 : -base_distance * Math.sin((current_rotation * Math.PI) / 180);
+            menu_item.position.y = row * 100;
+            menu_item.position.z = cos.indexOf(current_rotation) > -1 ? 0 : -base_distance * Math.cos((current_rotation * Math.PI) / 180);
+            menu_item.castShadow = true;
+            menu_item.receiveShadow = true;
+            menu_item.name = 'gameImg' + i;
+            menu_items.push(menu_item);
+
+            scene.add(menu_item);
+        }
+    }
+
+    function addGameImages(base_distance, total, current_rotation, row) {
+        var game_geometry = new THREE.PlaneGeometry(100, 147 * 0.4);
+        for (var i = 1; i <= total; i++) {
+            var game_image = new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture('img/game_images/' + i + '.jpg')});
+            plane = new THREE.Mesh(game_geometry, game_image);
+            current_rotation = 360 / total + current_rotation;
+            plane.rotation.y = (current_rotation * Math.PI) / 180;
+
+            var sin = [0, 180, 360];
+            var cos = [90, 270];
+
+            plane.position.x = sin.indexOf(current_rotation) > -1 ? 0 : -base_distance * Math.sin((current_rotation * Math.PI) / 180);
+            plane.position.y = row * 100;
+            plane.position.z = cos.indexOf(current_rotation) > -1 ? 0 : -base_distance * Math.cos((current_rotation * Math.PI) / 180);
+            planes.push(plane);
+            scene.add(plane);
+        }
+    }
+
+    function gameEntryAnimation(num) {
+        var sin = [0, 180, 360];
+        var cos = [90, 270];
+        var elem = planes[num];
+        var current_rotation = (elem.rotation.y / Math.PI) * 180;
+        console.log(current_rotation);
+        var pos = 950;
+        var id = setInterval(frame, 5);
+
+        function frame() {
+            if (pos == 150) {
+                clearInterval(id);
+            } else {
+                pos -= 5;
+                elem.position.x = sin.indexOf(current_rotation) > -1 ? 0 : -pos * Math.sin((current_rotation * Math.PI) / 180);
+                elem.position.z = cos.indexOf(current_rotation) > -1 ? 0 : -pos * Math.cos((current_rotation * Math.PI) / 180);
+                console.log(elem.position.x, elem.position.z)
+            }
+        }
+    }
+
+    function resize() {
+        var width = container.offsetWidth;
+        var height = container.offsetHeight;
 
 //		camera.aspect = width / height;
 //		camera.updateProjectionMatrix();
 
-		renderer.setSize(width, height);
-		effect.setSize(width, height);
-	}
+        renderer.setSize(width, height);
+        effect.setSize(width, height);
+    }
 
-	function update(dt) {
-		resize();
+    function update(dt) {
+        resize();
 
-		camera.updateProjectionMatrix();
+        camera.updateProjectionMatrix();
 
-		controls.update(dt);
-	}
+        controls.update(dt);
+    }
 
-	function render(dt) {
-		effect.render(scene, camera);
+    function render(dt) {
+//		console.log(camera.rotation.y);
+        effect.render(scene, camera);
+//		var rotation = camera.getWorldDirection();
+//		console.log(rotation.x * 180 / Math.PI);
 
-		cube.rotation.x += 0.1;
-		cube.rotation.y += 0.1;
-	}
+    }
+    var degrees = function (radians) {
+        return radians;
+    };
+    function animate(t) {
+        requestAnimationFrame(animate);
 
-	function animate(t) {
-		requestAnimationFrame(animate);
+        update(clock.getDelta());
+        render(clock.getDelta());
+    }
 
-		update(clock.getDelta());
-		render(clock.getDelta());
-	}
+    setTimeout(animateAll, 10000);
+    setTimeout(entryAll, 10500);
 
-	function fullscreen() {
-		if (container.requestFullscreen) {
-			container.requestFullscreen();
-		} else if (container.msRequestFullscreen) {
-			container.msRequestFullscreen();
-		} else if (container.mozRequestFullScreen) {
-			container.mozRequestFullScreen();
-		} else if (container.webkitRequestFullscreen) {
-			container.webkitRequestFullscreen();
-		}
-	}
+    function entryAll() {
+        for(var i = 0; i < 8; i++) {
+            gameEntryAnimation(i);
+        }
+    }
+    function animateAll() {
+        for(var i = 0; i < 8; i++)
+        {
+            animateMe(i);
+        }
+        addGameImages(950, 8, 0, 0);
+    }
+    function animateMe(num) {
+        var elem = menu_items[num];
+        var pos = 0;
+        var id = setInterval(frame, 5);
+
+        function frame() {
+            if (elem.position.y == 100) {
+                clearInterval(id);
+            } else {
+                pos += 2;
+                elem.position.y = pos;
+            }
+        }
+    }
+    setTimeout(shrinkCrosshair, 5000);
+    function shrinkCrosshair() {
+        var elem1 = document.getElementById('crossImg');
+        var elem2 = document.getElementById('crossImg2');
+        var pos = 40;
+        var id = setInterval(frame, 10);
+
+        function frame() {
+            if (pos <= 20) {
+                clearInterval(id);
+            } else {
+                pos -= 0.1;
+                elem1.style.height = pos + "px";
+                elem1.style.width = pos + "px";
+
+                elem2.style.height = pos + "px";
+                elem2.style.width = pos + "px";
+            }
+        }
+    }
+    function fullscreen() {
+        if (container.requestFullscreen) {
+            container.requestFullscreen();
+        } else if (container.msRequestFullscreen) {
+            container.msRequestFullscreen();
+        } else if (container.mozRequestFullScreen) {
+            container.mozRequestFullScreen();
+        } else if (container.webkitRequestFullscreen) {
+            container.webkitRequestFullscreen();
+        }
+    }
 </script>
 </body>
 </html>
