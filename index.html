@@ -131,7 +131,7 @@
             font = response;
 
             images_per_row = 8;
-            addGameImages(150, images_per_row, 0, 0, null, "menu_images");
+            addGameImages(150, images_per_row, 0, 0, null, "menu_texts");
         });
 
         var logo = new THREE.MeshLambertMaterial({
@@ -195,10 +195,13 @@
         var texts = ['Games', 'Scenes', 'Terms', 'Home', 'Games', 'Cashier', 'Home', 'Terms'];
 
         for (var i = 1; i <= total; i++) {
-            var game_image = new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture('img/' + type + '/' + i + '.jpg')});
+            var ext = type == 'menu_texts' ? '.png' : '.jpg';
+            var game_image = new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture('img/' + type + '/' + i + ext), transparent: true});
             var plane = new THREE.Mesh(game_geometry, game_image);
             if(i == 7) {
-                plane = addText('BACK');
+                game_image = new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture('img/textures/back.png'), transparent: true});
+                plane = new THREE.Mesh(game_geometry, game_image);
+                plane.name = type + i;
             }
             current_rotation = 360 / total + current_rotation;
             plane.rotation.y = (current_rotation * Math.PI) / 180;
@@ -325,21 +328,43 @@
     function triggerAction(obj) {
         console.log(obj);
         switch (obj.name) {
-            case "menu_images1":
+            case "menu_texts1":
                 hideAll(function() {
                     addGameImages(150, 8, 0, 0, null, 'game_images')
                 });
-//                setTimeout(function () {
-//                    addGameImages(150, 8, 0, 0, null, 'game_images')
-//                }, 1000);
                 break;
-            case 'menu_images8':
+            case 'menu_texts8':
             hideAll(function() {
                 addGameImages(150, 8, 0, 0, null, 'scene_images')
             });
             break;
             case 'scene_images1':
                 changeBackground('snowy')
+                break;
+            case 'scene_images2':
+                changeBackground('casino')
+                break;
+            case 'scene_images3':
+                changeBackground('santamaria')
+                break;
+            case 'scene_images4':
+                changeBackground('beach')
+                break;
+            case 'scene_images5':
+                changeBackground('gamla')
+                break;
+            case 'scene_images6':
+                changeBackground('niagara')
+                break;
+            case 'scene_images8':
+                changeBackground('museum')
+                break;
+            case 'scene_images7':
+            case 'menu_image7':
+            case 'game_images7':
+                hideAll(function() {
+                    addGameImages(150, 8, 0, 0, null, 'menu_texts')
+                });
                 break;
             default:
                 break
