@@ -1,0 +1,39 @@
+init() {
+var loader = new THREE.FontLoader();
+
+		loader.load('fonts/optimer_bold.typeface.json', function(response) {
+			font = response;
+
+			images_per_row = 8;
+			addGameImages(150, images_per_row, 0, 0);
+		});
+}
+
+function addText(text) {
+		var material = new THREE.MultiMaterial( [
+			new THREE.MeshBasicMaterial( { color: 0xffffff, shading: THREE.FlatShading } ), // front
+			new THREE.MeshBasicMaterial( { color: 0x000000, shading: THREE.SmoothShading } ) // side
+		] );
+		var textGeo = new THREE.TextGeometry(text, {
+			font: font,
+			size: 20,
+			height: 2,
+			amount: 8,
+			bevelEnabled: true,
+			bevelSegments: 2,
+			steps: 2,
+			bevelSize: 1,
+			bevelThickness: 1
+		});
+		return new THREE.Mesh( textGeo, material );
+	}
+
+var texts = ['Games', 'Scenes', 'Terms', 'Home', 'Games', 'Cashier', 'Home', 'Terms'];
+var plane = addText(texts[i-1]);
+
+vmesto 
+
+var game_geometry = new THREE.PlaneGeometry(100, 147 * 0.4);
+var game_image = new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture('img/game_images/' + i + '.jpg')});
+var plane = new THREE.Mesh(game_geometry, game_image);
+
