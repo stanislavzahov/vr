@@ -17,7 +17,8 @@
             right: 0;
             bottom: 0;
         }
-        .crossImg{
+
+        .crossImg {
             position: fixed;
             width: 40px;
             height: 40px;
@@ -29,6 +30,7 @@
             -webkit-transform: translate(-25%, -50%);
             transform: translate(-25%, -50%);
         }
+
         #crossImg2 {
             left: 75%;
             -webkit-transform: translate(-75%, -50%);
@@ -40,7 +42,7 @@
 <body>
 
 <div id="example">
-    <!--<button id="animateMe" onclick="animate()">Animate</button>-->
+    <div id="text"></div>
     <img class="crossImg" id="crossImg" src="img/circle.gif"/>
     <img class="crossImg" id="crossImg2" src="img/circle.gif"/>
 </div>
@@ -55,10 +57,14 @@
     var camera, cube, scene, renderer;
     var effect, controls;
     var element, container;
-    var planes = [];
+    var images_per_row;
+    var vectors = {};
+    var planes = {};
     var menu_items = [];
-    var defaults = [];
+    var defaults = {}
     var clock = new THREE.Clock();
+    var lock = false;
+    var moved = false;
 
     init();
     animate();
@@ -91,9 +97,6 @@
         scene = new THREE.Scene();
 
         camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.001, 700);
-//		camera.position.set(0, 10, 0);
-
-
         scene.add(camera);
 
         scene.background = new THREE.CubeTextureLoader()
@@ -119,8 +122,10 @@
         );
         controls.noZoom = true;
         controls.noPan = true;
-        addMenu(150, 8, 0, 0);
 
+        images_per_row = 8;
+        addGameImages(150, images_per_row, 0, 0);
+        addGameImages(150, images_per_row, 0, 1);
 
 
         function setOrientationControls(e) {
@@ -174,9 +179,14 @@
 
     function addGameImages(base_distance, total, current_rotation, row) {
         var game_geometry = new THREE.PlaneGeometry(100, 147 * 0.4);
+        if (!vectors[row]) {
+            vectors[row] = Math.sqrt(Math.pow(base_distance, 2) + Math.pow(row * 100, 2));
+        }
+
         for (var i = 1; i <= total; i++) {
             var game_image = new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture('img/game_images/' + i + '.jpg')});
             plane = new THREE.Mesh(game_geometry, game_image);
+
             current_rotation = 360 / total + current_rotation;
             plane.rotation.y = (current_rotation * Math.PI) / 180;
 
@@ -186,7 +196,23 @@
             plane.position.x = sin.indexOf(current_rotation) > -1 ? 0 : -base_distance * Math.sin((current_rotation * Math.PI) / 180);
             plane.position.y = row * 100;
             plane.position.z = cos.indexOf(current_rotation) > -1 ? 0 : -base_distance * Math.cos((current_rotation * Math.PI) / 180);
-            planes.push(plane);
+            planes[row] = planes[row] || [];
+            planes[row].push(plane);
+
+            defaults[row] = defaults[row] || [];
+            defaults[row].push({
+                position: {
+                    x: plane.position.x,
+                    y: plane.position.y,
+                    z: plane.position.z
+                },
+                rotation: {
+                    y: plane.rotation.y
+                },
+                index: (planes.length - 1),
+                row: row
+            });
+
             scene.add(plane);
         }
     }
@@ -234,10 +260,66 @@
     function render(dt) {
 //		console.log(camera.rotation.y);
         effect.render(scene, camera);
+        gamePointer();
 //		var rotation = camera.getWorldDirection();
 //		console.log(rotation.x * 180 / Math.PI);
 
     }
+
+    var current_row = 0;
+    var row_defaults = defaults[current_row];
+    var row_planes = planes[current_row];
+
+    function gamePointer() {
+        var camera_rotation_y = Math.abs(camera.rotation.y / Math.PI * 180) > 180 ? (camera.rotation.y / Math.PI * 180) - 360 : (camera.rotation.y / Math.PI * 180);
+        var camera_rotation_x = camera.rotation.x / Math.PI * 180;//Math.abs(camera.rotation.x / Math.PI * 180) > 180 ? (camera.rotation.x / Math.PI * 180) - 360 : (camera.rotation.x / Math.PI * 180);
+
+        for (var v in vectors) {
+            var sin = Math.abs(v * 100) / vectors[v];
+            var deg = sin == 0 ? 0 : (Math.asin(sin) / Math.PI) * 180;
+            deg = v >= 0 ? deg : deg * -1;
+
+            var up = v >= 0 && camera_rotation_x < (deg + 14) && camera_rotation_x > (deg - 14);
+            var down = v < 0 && camera_rotation_x < (deg + 14) && camera_rotation_x > (deg - 14);
+            if (up || down) {
+                document.getElementById('text').innerHTML =  'Row: ' + v + ' - ' + camera_rotation_x + ' - ' + (deg + 14) + ' - ' + (deg - 14);
+
+                if (current_row != v) {
+                    for (var plane in row_planes) {
+                        row_planes[plane].position.z = row_defaults[plane].position.z;
+                        row_planes[plane].position.x = row_defaults[plane].position.x;
+                    }
+
+                    current_row = v;
+                    row_defaults = defaults[current_row];
+                    row_planes = planes[current_row];
+                }
+            }
+        }
+
+        for (var i = 0; i < row_defaults.length; i++) {
+            var plane_rotation = Math.abs(row_planes[i].rotation.y / Math.PI * 180) > 180 ? (row_planes[i].rotation.y / Math.PI * 180) - 360 : (row_planes[i].rotation.y / Math.PI * 180);
+            if (camera_rotation_y < plane_rotation + 10 && camera_rotation_y > plane_rotation - 10) {
+                if (!lock && row_planes && row_planes.length > 0) {
+                    row_planes[i].position.z = row_planes[i].position.z == 0 ? 0 : row_planes[i].position.z > 0 ? row_planes[i].position.z - 30 : row_planes[i].position.z + 30;
+                    row_planes[i].position.x = row_planes[i].position.x == 0 ? 0 : row_planes[i].position.x > 0 ? row_planes[i].position.x - 30 : row_planes[i].position.x + 30;
+
+                    lock = true;
+                    moved = i;
+                    window.navigator && window.navigator.vibrate ? window.navigator.vibrate(200) : {};
+                    break;
+                }
+            }
+            else if (moved !== false && moved === i && row_planes && row_planes.length > 0) {
+                row_planes[moved].position.z = row_defaults[moved].position.z;
+                row_planes[moved].position.x = row_defaults[moved].position.x;
+                lock = false;
+                moved = false;
+                break;
+            }
+        }
+    }
+
     var degrees = function (radians) {
         return radians;
     };
@@ -252,13 +334,12 @@
     setTimeout(entryAll, 10500);
 
     function entryAll() {
-        for(var i = 0; i < 8; i++) {
+        for (var i = 0; i < 8; i++) {
             gameEntryAnimation(i);
         }
     }
     function animateAll() {
-        for(var i = 0; i < 8; i++)
-        {
+        for (var i = 0; i < 8; i++) {
             animateMe(i);
         }
         addGameImages(950, 8, 0, 0);
