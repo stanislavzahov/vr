@@ -47,21 +47,21 @@
     <img class="crossImg" id="crossImg2" src="img/circle.gif"/>
 </div>
 <!--<iframe src="https://www.casino.com/uk/games/hlf2/halloween-fortune-ii/?mode=practice" style="position: absolute; z-index:999999999; top:0; left:0; width: 100%; height:100%;"></iframe>-->
-<script src="build/three.js"></script>
+<script src="js/three.js"></script>
 <script src="js/third-party/threejs/StereoEffect.js"></script>
 <script src="js/third-party/threejs/DeviceOrientationControls.js"></script>
 <script src="js/third-party/threejs/OrbitControls.js"></script>
 <script src="js/NoSleep.min.js"></script>
 
 <script>
-    var camera, cube, scene, renderer;
-    var effect, controls;
+    var camera, cube, scene, times, renderer;
+    var effect, controls, crosshair;
     var element, container;
     var images_per_row;
     var vectors = {};
-    var planes = {};
+    var planes = [];
     var menu_items = [];
-    var defaults = {}
+    var defaults = [];
     var clock = new THREE.Clock();
     var lock = false;
     var moved = false;
@@ -124,8 +124,22 @@
         controls.noPan = true;
 
         images_per_row = 8;
-        addGameImages(150, images_per_row, 0, 0);
-        addGameImages(150, images_per_row, 0, 1);
+//        addMenu(150, images_per_row, 0, 0);
+        var loader = new THREE.FontLoader();
+
+        loader.load('fonts/optimer_bold.typeface.json', function(response) {
+            font = response;
+
+            images_per_row = 8;
+            addGameImages(150, images_per_row, 0, 0, null, "menu_images");
+        });
+
+        var logo = new THREE.MeshLambertMaterial({
+            map: THREE.ImageUtils.loadTexture('img/textures/mansion_logo.png')
+        });
+        cube = new THREE.Mesh( new THREE.CubeGeometry( 50, 50, 50 ), logo );
+        cube.position.y = 150;
+        scene.add(cube);
 
 
         function setOrientationControls(e) {
@@ -144,49 +158,48 @@
         window.addEventListener('deviceorientation', setOrientationControls, true);
 
 
-        var light = new THREE.HemisphereLight(0x777777, 0x000000, 0.9);
+        var light = new THREE.HemisphereLight(0x000000, 0x777777, 0.9);
         scene.add(light);
 
         window.addEventListener('resize', resize, false);
         setTimeout(resize, 1);
     }
-    function addMenu(base_distance, total, current_rotation, row) {
-        var game_geometry = new THREE.PlaneGeometry(100, 147 * 0.4);
-        base_distance = 150;
-        total = 8;
-        current_rotation = 0;
 
-        for (var i = 1; i <= total; i++) {
-            var game_image = new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture('img/menu_images/' + i + '.jpg')});
-            menu_item = new THREE.Mesh(game_geometry, game_image);
-            current_rotation = 360 / total + current_rotation;
-            menu_item.rotation.y = (current_rotation * Math.PI) / 180;
-
-            var sin = [0, 180, 360];
-            var cos = [90, 270];
-
-            menu_item.position.x = sin.indexOf(current_rotation) > -1 ? 0 : -base_distance * Math.sin((current_rotation * Math.PI) / 180);
-            menu_item.position.y = row * 100;
-            menu_item.position.z = cos.indexOf(current_rotation) > -1 ? 0 : -base_distance * Math.cos((current_rotation * Math.PI) / 180);
-            menu_item.castShadow = true;
-            menu_item.receiveShadow = true;
-            menu_item.name = 'gameImg' + i;
-            menu_items.push(menu_item);
-
-            scene.add(menu_item);
-        }
+    function addText(text) {
+        var material = new THREE.MultiMaterial( [
+            new THREE.MeshBasicMaterial( { color: 0xffffff, shading: THREE.FlatShading } ), // front
+            new THREE.MeshBasicMaterial( { color: 0x000000, shading: THREE.SmoothShading } ) // side
+        ] );
+        var textGeo = new THREE.TextGeometry(text, {
+            font: font,
+            size: 20,
+            height: 2,
+            amount: 8,
+            bevelEnabled: true,
+            bevelSegments: 2,
+            steps: 2,
+            bevelSize: 1,
+            bevelThickness: 1
+        });
+        return new THREE.Mesh( textGeo, material );
     }
 
-    function addGameImages(base_distance, total, current_rotation, row) {
+    function addGameImages(base_distance, total, current_rotation, row, callback, type) {
+
+        planes = [];
+        defaults = [];
         var game_geometry = new THREE.PlaneGeometry(100, 147 * 0.4);
         if (!vectors[row]) {
             vectors[row] = Math.sqrt(Math.pow(base_distance, 2) + Math.pow(row * 100, 2));
         }
+        var texts = ['Games', 'Scenes', 'Terms', 'Home', 'Games', 'Cashier', 'Home', 'Terms'];
 
         for (var i = 1; i <= total; i++) {
-            var game_image = new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture('img/game_images/' + i + '.jpg')});
-            plane = new THREE.Mesh(game_geometry, game_image);
-
+            var game_image = new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture('img/' + type + '/' + i + '.jpg')});
+            var plane = new THREE.Mesh(game_geometry, game_image);
+            if(i == 7) {
+                plane = addText('BACK');
+            }
             current_rotation = 360 / total + current_rotation;
             plane.rotation.y = (current_rotation * Math.PI) / 180;
 
@@ -196,11 +209,12 @@
             plane.position.x = sin.indexOf(current_rotation) > -1 ? 0 : -base_distance * Math.sin((current_rotation * Math.PI) / 180);
             plane.position.y = row * 100;
             plane.position.z = cos.indexOf(current_rotation) > -1 ? 0 : -base_distance * Math.cos((current_rotation * Math.PI) / 180);
-            planes[row] = planes[row] || [];
-            planes[row].push(plane);
-
-            defaults[row] = defaults[row] || [];
-            defaults[row].push({
+            plane.name = type + i;
+            planes.push(plane);
+            if(i == 7) {
+                console.log(plane.position.x, plane.position.z);
+            }
+            defaults.push({
                 position: {
                     x: plane.position.x,
                     y: plane.position.y,
@@ -209,34 +223,16 @@
                 rotation: {
                     y: plane.rotation.y
                 },
-                index: (planes.length - 1),
                 row: row
             });
 
             scene.add(plane);
         }
-    }
-
-    function gameEntryAnimation(num) {
-        var sin = [0, 180, 360];
-        var cos = [90, 270];
-        var elem = planes[num];
-        var current_rotation = (elem.rotation.y / Math.PI) * 180;
-        console.log(current_rotation);
-        var pos = 950;
-        var id = setInterval(frame, 5);
-
-        function frame() {
-            if (pos == 150) {
-                clearInterval(id);
-            } else {
-                pos -= 5;
-                elem.position.x = sin.indexOf(current_rotation) > -1 ? 0 : -pos * Math.sin((current_rotation * Math.PI) / 180);
-                elem.position.z = cos.indexOf(current_rotation) > -1 ? 0 : -pos * Math.cos((current_rotation * Math.PI) / 180);
-                console.log(elem.position.x, elem.position.z)
-            }
+        if (typeof callback === "function") {
+            callback();
         }
     }
+
 
     function resize() {
         var width = container.offsetWidth;
@@ -256,101 +252,140 @@
 
         controls.update(dt);
     }
-
     function render(dt) {
-//		console.log(camera.rotation.y);
+        cube.rotation.x += 0.02;
+        cube.rotation.y += 0.0225;
+        cube.rotation.z += 0.0175;
+
         effect.render(scene, camera);
         gamePointer();
-//		var rotation = camera.getWorldDirection();
-//		console.log(rotation.x * 180 / Math.PI);
+
 
     }
-
-    var current_row = 0;
-    var row_defaults = defaults[current_row];
-    var row_planes = planes[current_row];
 
     function gamePointer() {
         var camera_rotation_y = Math.abs(camera.rotation.y / Math.PI * 180) > 180 ? (camera.rotation.y / Math.PI * 180) - 360 : (camera.rotation.y / Math.PI * 180);
-        var camera_rotation_x = camera.rotation.x / Math.PI * 180;//Math.abs(camera.rotation.x / Math.PI * 180) > 180 ? (camera.rotation.x / Math.PI * 180) - 360 : (camera.rotation.x / Math.PI * 180);
 
-        for (var v in vectors) {
-            var sin = Math.abs(v * 100) / vectors[v];
-            var deg = sin == 0 ? 0 : (Math.asin(sin) / Math.PI) * 180;
-            deg = v >= 0 ? deg : deg * -1;
+        if (planes.length > 0) {
+            var elem1 = document.getElementById('crossImg');
+            var elem2 = document.getElementById('crossImg2');
+            var pos = 40;
+            for (var i = 0; i < defaults.length; i++) {
+                var plane_rotation = Math.abs(planes[i].rotation.y / Math.PI * 180) > 180 ? (planes[i].rotation.y / Math.PI * 180) - 360 : (planes[i].rotation.y / Math.PI * 180);
+                if (camera_rotation_y < plane_rotation + 10 && camera_rotation_y > plane_rotation - 10) {
+                    if (!lock && planes && planes.length > 0) {
+                        planes[i].position.z = planes[i].position.z == 0 ? 0 : planes[i].position.z > 0 ? planes[i].position.z - 30 : planes[i].position.z + 30;
+                        planes[i].position.x = planes[i].position.x == 0 ? 0 : planes[i].position.x > 0 ? planes[i].position.x - 30 : planes[i].position.x + 30;
+                        lock = true;
+                        moved = i;
+                        window.navigator && window.navigator.vibrate ? window.navigator.vibrate(200) : {};
 
-            var up = v >= 0 && camera_rotation_x < (deg + 14) && camera_rotation_x > (deg - 14);
-            var down = v < 0 && camera_rotation_x < (deg + 14) && camera_rotation_x > (deg - 14);
-            if (up || down) {
-                document.getElementById('text').innerHTML =  'Row: ' + v + ' - ' + camera_rotation_x + ' - ' + (deg + 14) + ' - ' + (deg - 14);
+                        crosshair = setInterval(frame, 10);
+                        function frame() {
+                            if (pos <= 20) {
+                                clearInterval(crosshair);
+                            } else {
+                                pos -= 0.1;
+                                elem1.style.height = pos + "px";
+                                elem1.style.width = pos + "px";
+                                elem2.style.height = pos + "px";
+                                elem2.style.width = pos + "px";
+                            }
+                        }
+                        (function(index) {
+                            times = setTimeout(function() {
+                                triggerAction(planes[index]);
+                            }, 2500);
+                        })(i);
 
-                if (current_row != v) {
-                    for (var plane in row_planes) {
-                        row_planes[plane].position.z = row_defaults[plane].position.z;
-                        row_planes[plane].position.x = row_defaults[plane].position.x;
                     }
-
-                    current_row = v;
-                    row_defaults = defaults[current_row];
-                    row_planes = planes[current_row];
                 }
-            }
-        }
-
-        for (var i = 0; i < row_defaults.length; i++) {
-            var plane_rotation = Math.abs(row_planes[i].rotation.y / Math.PI * 180) > 180 ? (row_planes[i].rotation.y / Math.PI * 180) - 360 : (row_planes[i].rotation.y / Math.PI * 180);
-            if (camera_rotation_y < plane_rotation + 10 && camera_rotation_y > plane_rotation - 10) {
-                if (!lock && row_planes && row_planes.length > 0) {
-                    row_planes[i].position.z = row_planes[i].position.z == 0 ? 0 : row_planes[i].position.z > 0 ? row_planes[i].position.z - 30 : row_planes[i].position.z + 30;
-                    row_planes[i].position.x = row_planes[i].position.x == 0 ? 0 : row_planes[i].position.x > 0 ? row_planes[i].position.x - 30 : row_planes[i].position.x + 30;
-
-                    lock = true;
-                    moved = i;
-                    window.navigator && window.navigator.vibrate ? window.navigator.vibrate(200) : {};
-                    break;
+                else if (moved !== false && moved === i && planes && planes.length > 0) {
+                    clearInterval(crosshair);
+                    elem1.style.height = "40px";
+                    elem1.style.width = "40px";
+                    elem2.style.height = "40px";
+                    elem2.style.width = "40px";
+                    planes[moved].position.z = defaults[moved].position.z;
+                    planes[moved].position.x = defaults[moved].position.x;
+                    lock = false;
+                    moved = false;
+                    clearTimeout(times);
                 }
-            }
-            else if (moved !== false && moved === i && row_planes && row_planes.length > 0) {
-                row_planes[moved].position.z = row_defaults[moved].position.z;
-                row_planes[moved].position.x = row_defaults[moved].position.x;
-                lock = false;
-                moved = false;
-                break;
             }
         }
     }
 
-    var degrees = function (radians) {
-        return radians;
-    };
     function animate(t) {
         requestAnimationFrame(animate);
 
         update(clock.getDelta());
         render(clock.getDelta());
     }
-
-    setTimeout(animateAll, 10000);
-    setTimeout(entryAll, 10500);
-
+    function triggerAction(obj) {
+        console.log(obj);
+        switch (obj.name) {
+            case "menu_images1":
+                hideAll(function() {
+                    addGameImages(150, 8, 0, 0, null, 'game_images')
+                });
+//                setTimeout(function () {
+//                    addGameImages(150, 8, 0, 0, null, 'game_images')
+//                }, 1000);
+                break;
+            case 'menu_images8':
+            hideAll(function() {
+                addGameImages(150, 8, 0, 0, null, 'scene_images')
+            });
+            break;
+            case 'scene_images1':
+                changeBackground('snowy')
+                break;
+            default:
+                break
+        }
+    }
     function entryAll() {
         for (var i = 0; i < 8; i++) {
-            gameEntryAnimation(i);
+            gameEntryAnimation(i, -1);
         }
     }
-    function animateAll() {
+
+    function gameEntryAnimation(num, row) {
+        var sin = [0, 180, 360];
+        var cos = [90, 270];
+        var elem = planes[row][num];
+        var current_rotation = (elem.rotation.y / Math.PI) * 180;
+        var pos = 950;
+        var id = setInterval(frame, 5);
+
+        function frame() {
+            if (pos == 150) {
+                clearInterval(id);
+            } else {
+                pos -= 5;
+                elem.position.x = sin.indexOf(current_rotation) > -1 ? 0 : -pos * Math.sin((current_rotation * Math.PI) / 180);
+                elem.position.z = cos.indexOf(current_rotation) > -1 ? 0 : -pos * Math.cos((current_rotation * Math.PI) / 180);
+            }
+        }
+    }
+    function hideAll(callback) {
         for (var i = 0; i < 8; i++) {
-            animateMe(i);
+            hideMenu(i);
         }
-        addGameImages(950, 8, 0, 0);
+        if (typeof callback === "function") {
+            callback();
+        }
     }
-    function animateMe(num) {
-        var elem = menu_items[num];
+
+
+    function hideMenu(num) {
+        var elem = planes[num];
         var pos = 0;
         var id = setInterval(frame, 5);
 
         function frame() {
-            if (elem.position.y == 100) {
+            if (elem.position.y == 1000) {
                 clearInterval(id);
             } else {
                 pos += 2;
@@ -358,26 +393,18 @@
             }
         }
     }
-    setTimeout(shrinkCrosshair, 5000);
-    function shrinkCrosshair() {
-        var elem1 = document.getElementById('crossImg');
-        var elem2 = document.getElementById('crossImg2');
-        var pos = 40;
-        var id = setInterval(frame, 10);
 
-        function frame() {
-            if (pos <= 20) {
-                clearInterval(id);
-            } else {
-                pos -= 0.1;
-                elem1.style.height = pos + "px";
-                elem1.style.width = pos + "px";
+    function changeBackground(name) {
+        scene.background = new THREE.CubeTextureLoader()
+                .setPath('img/textures/' + name + '/')
+                .load(['px.jpg', 'nx.jpg', 'py.jpg', 'ny.jpg', 'pz.jpg', 'nz.jpg']);
 
-                elem2.style.height = pos + "px";
-                elem2.style.width = pos + "px";
-            }
-        }
+        var textureCube = new THREE.CubeTextureLoader()
+                .setPath('img/textures/' + name + '/')
+                .load(['px.jpg', 'nx.jpg', 'py.jpg', 'ny.jpg', 'pz.jpg', 'nz.jpg']);
+        textureCube.mapping = THREE.CubeRefractionMapping;
     }
+
     function fullscreen() {
         if (container.requestFullscreen) {
             container.requestFullscreen();
